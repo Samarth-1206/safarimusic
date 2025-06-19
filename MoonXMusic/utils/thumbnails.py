@@ -1,12 +1,14 @@
 import os
 import re
-import random
-import aiohttp
-import aiofiles
-import traceback
 
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont, ImageOps
+import aiofiles
+import aiohttp
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from unidecode import unidecode
 from youtubesearchpython.__future__ import VideosSearch
+
+from PURVIMUSIC import app
+from config import YOUTUBE_IMG_URL
 
 
 def changeImageSize(maxWidth, maxHeight, image):
@@ -17,19 +19,19 @@ def changeImageSize(maxWidth, maxHeight, image):
     newImage = image.resize((newWidth, newHeight))
     return newImage
 
-def truncate(text):
-    list = text.split(" ")
-    text1, text2 = "", ""
-    for i in list:
-        if len(text1) + len(i) < 30:        
-            text1 += " " + i
-        elif len(text2) + len(i) < 30:       
-            text2 += " " + i
-    return [text1.strip(), text2.strip()]
 
-async def get_thumb(videoid: str):
-    #if os.path.isfile(f"cache/{videoid}.png"):
-    #    return f"cache/{videoid}.png"
+def clear(text):
+    list = text.split(" ")
+    title = ""
+    for i in list:
+        if len(title) + len(i) < 60:
+            title += " " + i
+    return title.strip()
+
+
+async def get_thumb(videoid):
+    if os.path.isfile(f"cache/{videoid}.png"):
+        return f"cache/{videoid}.png"
 
     url = f"https://www.youtube.com/watch?v={videoid}"
     try:
@@ -58,97 +60,63 @@ async def get_thumb(videoid: str):
         async with aiohttp.ClientSession() as session:
             async with session.get(thumbnail) as resp:
                 if resp.status == 200:
-                    f = await aiofiles.open(
-                        f"cache/thumb{videoid}.png", mode="wb"
-                    )
+                    f = await aiofiles.open(f"cache/thumb{videoid}.png", mode="wb")
                     await f.write(await resp.read())
                     await f.close()
 
-        icons = Image.open("MoonXMusic/assets/icons.png")
         youtube = Image.open(f"cache/thumb{videoid}.png")
         image1 = changeImageSize(1280, 720, youtube)
         image2 = image1.convert("RGBA")
-        background = image2.filter(filter=ImageFilter.BoxBlur(20))
+        background = image2.filter(filter=ImageFilter.BoxBlur(10))
         enhancer = ImageEnhance.Brightness(background)
-        background = enhancer.enhance(0.6)
-
-        Xcenter = youtube.width / 2
-        Ycenter = youtube.height / 2
-        x1 = Xcenter - 250
-        y1 = Ycenter - 250
-        x2 = Xcenter + 250
-        y2 = Ycenter + 250
-        rand = (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255))
-        logo = youtube.crop((x1, y1, x2, y2))
-        logo.thumbnail((370, 370), Image.ANTIALIAS)
-        logo = ImageOps.expand(logo, border=17, fill=rand)
-        background.paste(logo, (100, 150))
-
+        background = enhancer.enhance(0.5)
         draw = ImageDraw.Draw(background)
         arial = ImageFont.truetype("MoonXMusic/assets/font2.ttf", 30)
         font = ImageFont.truetype("MoonXMusic/assets/font.ttf", 30)
-        tfont = ImageFont.truetype("MoonXMusic/assets/font3.ttf", 45)
-
-        stitle = truncate(title)
+        text_size = draw.textsize("TEAM KAISEN BOTS    ", font=font)
+        draw.text((1280 - text_size[0] - 10, 10), " TEAM KAISEN BOTS    ", fill="white", font=font)
         draw.text(
-            (565, 180),
-            stitle[0],
-            (255, 255, 255),
-            font=tfont,
-        )
-        draw.text(
-            (565, 230),
-            stitle[1],
-            (255, 255, 255),
-            font=tfont,
-        )
-        draw.text(
-            (565, 320),
+            (55, 560),
             f"{channel} | {views[:23]}",
             (255, 255, 255),
             font=arial,
         )
-        draw.line(
-             [(565, 385), (1130, 385)],
-             fill="white",
-             width=8,
-             joint="curve",
+        draw.text(
+            (57, 600),
+            clear(title),
+            (255, 255, 255),
+            font=font,
         )
         draw.line(
-             [(565, 385), (999, 385)],
-             fill=rand,
-             width=8,
-             joint="curve",
+            [(55, 660), (1220, 660)],
+            fill="white",
+            width=5,
+            joint="curve",
         )
         draw.ellipse(
-            [(999, 375), (1020, 395)],
-            outline=rand,
-            fill=rand,
+            [(918, 648), (942, 672)],
+            outline="white",
+            fill="white",
             width=15,
         )
         draw.text(
-            (565, 400),
+            (36, 685),
             "00:00",
             (255, 255, 255),
             font=arial,
         )
         draw.text(
-            (1080, 400),
+            (1185, 685),
             f"{duration[:23]}",
             (255, 255, 255),
             font=arial,
         )
-        picons = icons.resize((580, 62))
-        background.paste(picons, (565, 450), picons)
-
         try:
             os.remove(f"cache/thumb{videoid}.png")
         except:
             pass
-        tpath = f"cache/{videoid}.png"
-        background.save(tpath)
-        return tpath
-
-    except:
-        traceback.print_exc()
-        return None
+        background.save(f"cache/{videoid}.png")
+        return f"cache/{videoid}.png"
+    except Exception as e:
+        print(e)
+        return YOUTUBE_IMG_URL
